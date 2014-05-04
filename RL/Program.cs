@@ -9,6 +9,7 @@ namespace RL
     {
         static void Main(string[] args)
         {
+            Console.Title = "Player";
         }
     }
 }
