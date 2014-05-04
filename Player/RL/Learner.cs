@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
+﻿
 namespace Player.RL
 {
     class Learner
@@ -16,6 +12,7 @@ namespace Player.RL
         /// </summary>
         public static void Init()
         {
+            // TODO: Init your learner here
         }
         /// <summary>
         /// Executes ops and returns a movement direction based on game's status

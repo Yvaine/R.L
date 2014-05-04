@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using System.Net;
@@ -12,11 +10,14 @@ namespace Player
 {
     class Player
     {
+        /// <summary>
+        /// The socket channel for communication with server
+        /// </summary>
         private Socket Channel { get; set; }
         /// <summary>
         /// Shortcut for `Console.WriteLine()`
         /// </summary>
-        private static void o(string format, params object[] arg) { Console.WriteLine(format, arg); }
+        private void o(string format, params object[] arg) { Console.WriteLine(format, arg); }
         /// <summary>
         /// Converts string to byte array
         /// </summary>
@@ -33,19 +34,22 @@ namespace Player
         /// <summary>
         /// Main entery point of application
         /// </summary>
-        static void Main()
+        public static void Main()
         {
+            // init title
             Console.Title = "Player";
-            var player = new Player();
-            Player.Bootstrap();
-            player.Init();
-            player.Iterate();
+            // bootstrap and initiate the game-play ops
+            new Player()
+                .Bootstrap()
+                .Init()
+                .Gameplay();
+            // wait for any key
             Console.ReadKey(true);
         }
         /// <summary>
-        /// Bootstrap the app
+        /// Bootstrap the app.
         /// </summary>
-        private static void Bootstrap()
+        private Player Bootstrap()
         {
             var pwd = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
             foreach (var p in new string[] { "ps", "pm" })
@@ -53,16 +57,23 @@ namespace Player
                 foreach (var k in System.Diagnostics.Process.GetProcessesByName(p)) k.Kill();
                 Process.Start(String.Format("{0}/{1}.exe", pwd, p));
             }
+            // update the console's title
+            Console.Title += (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName.Replace(".vshost", "")).Length).ToString();
+            // if in debug mode??
             if (Process.GetCurrentProcess().ProcessName.Contains(".vshost"))
+            {
                 Process.Start(System.Windows.Forms.Application.ExecutablePath);
+            }
+            return this;
         }
         /// <summary>
-        /// Initializes the app.
+        /// Initializes the player
         /// </summary>
-        private void Init()
+        private Player Init()
         {
-            var pname = Process.GetCurrentProcess().ProcessName.Replace(".vshost", "");
+            // open-up a socket
             this.Channel = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            o("Waiting for server ....");
             while (true)
             {
                 try
@@ -72,25 +83,33 @@ namespace Player
                 }
                 catch { Thread.Sleep(100); }
             }
-            this.Channel.Send(this.s2b("I:{0}{1}", pname, System.Diagnostics.Process.GetProcessesByName(pname).Length + 1));
-            o("Connected to server");
+            // send player's name
+            this.Channel.Send(this.s2b("I:{0}", Console.Title));
+            o("Connected to server ....");
+            // init the learner
             Learner.Init();
+            return this;
         }
         /// <summary>
-        /// Plays with iteration
+        /// Initiates the game-play ops
         /// </summary>
-        private void Iterate()
+        private void Gameplay()
         {
-            while (true)
+            GameStatus gs = null;
+            do
             {
-                byte[] status = new byte[26];
-                int rcv = this.Channel.Receive(status);
-                Learner.Direction direction = Learner.ChooseAction(new GameStatus(status));
-                this.Channel.Send(this.s2b(((int)direction).ToString()));
-                o("Moved: {0}", direction.ToString());
-                o(this.b2s(status));
-                Thread.Sleep(1000);
-            }
+                try
+                {
+                    byte[] status = new byte[26];
+                    int rcv = this.Channel.Receive(status);
+                    if (rcv == 0) { o("!!Connection Dropped!!"); return; }
+                    gs = new GameStatus(status);
+                    Learner.Direction direction = Learner.ChooseAction(gs);
+                    this.Channel.Send(this.s2b(((int)direction).ToString()));
+                    o("Moved: {0}", direction.ToString());
+                }
+                catch (Exception e) { System.IO.File.AppendAllText("error.log", e.ToString()); o("Exception\n[ ABORT ]"); return; }
+            } while (gs != null && gs.GameState != GameStatus.State.GAME_FINISHED);
         }
     }
 }
