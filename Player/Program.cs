@@ -95,7 +95,7 @@ namespace Player
         /// </summary>
         private void Gameplay()
         {
-            GameStatus gs = null;
+            GameState gs = null;
             do
             {
                 try
@@ -103,13 +103,13 @@ namespace Player
                     byte[] status = new byte[26];
                     int rcv = this.Channel.Receive(status);
                     if (rcv == 0) { o("!!Connection Dropped!!"); return; }
-                    gs = new GameStatus(status);
+                    gs = new GameState(status);
                     Learner.Direction direction = Learner.ChooseAction(gs);
                     this.Channel.Send(this.s2b(((int)direction).ToString()));
                     o("Moved: {0}", direction.ToString());
                 }
                 catch (Exception e) { System.IO.File.AppendAllText("error.log", e.ToString()); o("Exception\n[ ABORT ]"); return; }
-            } while (gs != null && gs.GameState != GameStatus.State.GAME_FINISHED);
+            } while (gs != null && gs.Game_State != GameState.State.GAME_FINISHED);
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Drawing;
 
 namespace Player.RL
 {
-    class GameStatus
+    public class GameState
     {
         /// <summary>
         /// Get my location point
@@ -21,7 +21,7 @@ namespace Player.RL
         /// <summary>
         /// Get the state of game
         /// </summary>
-        public State GameState { get; private set; }
+        public State Game_State { get; private set; }
         /// <summary>
         /// Get game's step
         /// </summary>
@@ -42,7 +42,7 @@ namespace Player.RL
         /// Construct a new game status based on status byte
         /// </summary>
         /// <param name="status">The status bytes</param>
-        public GameStatus(byte[] status)
+        public GameState(byte[] status)
         {
             // fetch the status string
             var __string = Encoding.ASCII.GetString(status).Trim();
@@ -68,10 +68,10 @@ namespace Player.RL
             // fetch game's statu
             switch (__string[5])
             {
-                case 'C': this.GameState = State.RUNNING; break;
-                case 'L': this.GameState = State.PLAYER_SCORED; break;
-                case 'R': this.GameState = State.OPPONENT_SCORED; break;
-                case 'F': this.GameState = State.GAME_FINISHED; break;
+                case 'C': this.Game_State = State.RUNNING; break;
+                case 'L': this.Game_State = State.PLAYER_SCORED; break;
+                case 'R': this.Game_State = State.OPPONENT_SCORED; break;
+                case 'F': this.Game_State = State.GAME_FINISHED; break;
                 default:
                     throw new ArgumentException(String.Format("Undefined status `{0}`.", __string[4]));
             }
