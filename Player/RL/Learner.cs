@@ -61,9 +61,9 @@ namespace Player.RL
         protected static int getReward(GameState gs)
         {
             // if no previously game state has been recorded
-            if(GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
+            if (GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
             // get reward of current state based on combination of current and previous state's status
-            return ((gs.MyScore - GameStates.Peek().MyScore) + (GameStates.Peek().OpponentScore - gs.OpponentScore)) > 0 ? 1 : 0;
+            return (int)((gs.MyScore - GameStates.Peek().MyScore) + (GameStates.Peek().OpponentScore - gs.OpponentScore));
         }
     }
 }
