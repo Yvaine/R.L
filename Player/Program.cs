@@ -104,7 +104,7 @@ namespace Player
                     int rcv = this.Channel.Receive(status);
                     if (rcv == 0) { o("!!Connection Dropped!!"); return; }
                     gs = new GameState(status);
-                    Learner.Direction direction = Learner.ChooseAction(gs);
+                    Direction direction = Learner.ChooseAction(gs);
                     this.Channel.Send(this.s2b(((int)direction).ToString()));
                     o("Moved: {0}", direction.ToString());
                 }

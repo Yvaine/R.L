@@ -82,5 +82,13 @@ namespace Player.RL
             // fetch opponent's score
             this.OpponentScore = uint.Parse(__string.Substring(21));
         }
+        /// <summary>
+        /// Custom defined hash-code for game state
+        /// </summary>
+        /// <returns>The hash code</returns>
+        public override int GetHashCode()
+        {
+            return int.Parse(String.Format("{0}{1}{2}{3}{4}", this.MyLocation.X, this.MyLocation.Y, this.OpponentLocation.X, this.OpponentLocation.Y, this.IsBallMine ? 1 : 0));
+        }
     }
 }
