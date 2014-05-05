@@ -71,12 +71,12 @@ namespace Player.RL
         /// </summary>
         /// <param name="gs">The game state</param>
         /// <returns>The related reward for passed game state</returns>
-        protected static int getReward(GameState gs)
+        protected static float getReward(GameState gs)
         {
             // if no previously game state has been recorded
             if (GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
             // get reward of current state based on combination of current and previous state's status
-            return (int)((gs.MyScore - GameStates.Peek().MyScore) + (GameStates.Peek().OpponentScore - gs.OpponentScore));
+            return (float)((gs.MyScore - GameStates.Peek().MyScore) + (GameStates.Peek().OpponentScore - gs.OpponentScore)) + 0.5F * (gs.IsBallMine ? 1 : 0);
         }
         /// <summary>
         /// Calculates the `Q` value
@@ -84,7 +84,7 @@ namespace Player.RL
         /// <param name="s">For the game state</param>
         /// <param name="a">For the action</param>
         /// <returns>The `Q` value</returns>
-        protected static int Q(GameState s, Direction a)
+        protected static float Q(GameState s, Direction a)
         {
             return 0;
         }
@@ -94,7 +94,7 @@ namespace Player.RL
         /// <param name="s">For the game state</param>
         /// <param name="a">For the action</param>
         /// <returns>The `R` value</returns>
-        protected static int R(GameState s, Direction a)
+        protected static float R(GameState s, Direction a)
         {
             return getReward(s);
         }
