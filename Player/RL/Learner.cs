@@ -5,7 +5,7 @@ using System.Collections;
 using System.Diagnostics;
 namespace Player.RL
 {
-    public class Learner
+    class Learner
     {
         /// <summary>
         /// The gamma value for Q-Learning
@@ -19,6 +19,10 @@ namespace Player.RL
         /// The `Q` matrix
         /// </summary>
         protected static Dictionary<String, float> _Q { get; set; }
+        /// <summary>
+        /// Holds mutation factores
+        /// </summary>
+        protected static KeyValuePair<SAPair, uint> PrevMutationFactore { get; set; }
         /// <summary>
         /// Debug UI handler
         /// </summary>
@@ -35,6 +39,7 @@ namespace Player.RL
             DebugUI = new iDebug(Console.Title);
             DebugUI.Hide();
             RandGen = new Random(Environment.TickCount);
+            PrevMutationFactore = new KeyValuePair<SAPair, uint>();
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
             t.Interval = 100;
             t.Tick += new EventHandler((object sender, EventArgs e) =>
@@ -92,16 +97,32 @@ namespace Player.RL
 #endif
                     }
                 }
-                var candIndex = -1;
-                lock (RandGen)
+                int candIndex = -1;
+                // candidate container
+                KeyValuePair<float, Direction> candidate = new KeyValuePair<float, Direction>();
+                // while there is a item in list
+                while(nsmqpl.Count != 0)
                 {
-                    candIndex = RandGen.Next(0, nsmqpl.Count);
+                    lock (RandGen)
+                    {
+                        candIndex = RandGen.Next(0, nsmqpl.Count);
+                        // pick a random candidate
+                        candidate = nsmqpl[candIndex];
+                        // validate the mutation factore
+                        if (getMutationVal(gameState, candidate.Value) < 10) goto __PROCEED;
+                        // remove the current
+                        nsmqpl.RemoveAt(candIndex);
+                    }
                 }
+                var dirs = (int[])Enum.GetValues(typeof(Direction));
+                var randDir = (Direction)dirs[RandGen.Next(0, dirs.Length)];
+                candidate = new KeyValuePair<float, Direction>(getQVal(gameState, randDir), randDir);
 #if __DEBUG__
                 DebugUI.AddLine("CAND_INDEX: {0}", candIndex);
 #endif
-                // pick a random candidate
-                var candidate = nsmqpl[candIndex];
+__PROCEED:
+                // update the mution factore for current state
+                updateMutaionFactore(gameState, candidate.Value);
                 //candidate = new KeyValuePair<float, Direction>(getRVal(gameState, Direction.EAST), Direction.EAST);
 #if __DEBUG__
                 DebugUI.AddLine("{0} Candidate Detected.", nsmqpl.Count);
@@ -130,20 +151,6 @@ namespace Player.RL
                 return candidate.Value;
             }
             catch (Exception e) { Console.WriteLine(); Console.WriteLine(e.ToString()); Debug.WriteLine(e.ToString()); throw e; }
-        }
-        /// <summary>
-        /// Updates the `Q` table
-        /// </summary>
-        /// <param name="s">The game state</param>
-        /// <param name="a">The action</param>
-        /// <param name="val">The value of state-action</param>
-        protected static void updateQ(GameState s, Direction a, float val)
-        {
-            var key = new SAPair(s, a);
-            if (_Q.ContainsKey(key.GetHashCode()))
-                _Q[key.GetHashCode()] = val;
-            else
-                _Q.Add(key.GetHashCode(), val);
         }
         /// <summary>
         /// Get reward of passed game status
@@ -197,6 +204,20 @@ namespace Player.RL
             return r;
         }
         /// <summary>
+        /// Updates the `Q` table
+        /// </summary>
+        /// <param name="s">The game state</param>
+        /// <param name="a">The action</param>
+        /// <param name="val">The value of state-action</param>
+        protected static void updateQ(GameState s, Direction a, float val)
+        {
+            var key = new SAPair(s, a);
+            if (_Q.ContainsKey(key.GetHashCode()))
+                _Q[key.GetHashCode()] = val;
+            else
+                _Q.Add(key.GetHashCode(), val);
+        }
+        /// <summary>
         /// Calculates the `Q` value
         /// </summary>
         /// <param name="s">For the game state</param>
@@ -207,6 +228,34 @@ namespace Player.RL
             var key = new SAPair(s, a);
             if (_Q.ContainsKey(key.GetHashCode()))
                 return _Q[key.GetHashCode()];
+            return 0;
+        }
+        /// <summary>
+        /// Updates the `MutationFactore` table
+        /// </summary>
+        /// <param name="s">The game state</param>
+        /// <param name="a">The action</param>
+        /// <param name="val">The mutation factore's value</param>
+        protected static void updateMutaionFactore(GameState s, Direction a)
+        {
+            var key = new SAPair(s, a);
+            uint val = 0;
+            if (PrevMutationFactore.Key != null && PrevMutationFactore.Key.GetHashCode() == key.GetHashCode())
+                val = PrevMutationFactore.Value + 1;
+            PrevMutationFactore = new KeyValuePair<SAPair, uint>(key, val);
+        }
+        /// <summary>
+        /// Get `MutationFactore` for the state-action
+        /// </summary>
+        /// <param name="s">For the game state</param>
+        /// <param name="a">For the action</param>
+        /// <returns>The mutation factore's value</returns>
+        protected static uint getMutationVal(GameState s, Direction a)
+        {
+            if (PrevMutationFactore.Key == null) return 0;
+            var key = new SAPair(s, a);
+            if (PrevMutationFactore.Key.GetHashCode() == key.GetHashCode())
+                return PrevMutationFactore.Value;
             return 0;
         }
         /// <summary>
@@ -241,12 +290,26 @@ namespace Player.RL
 #endif
             if (_s.MyLocation == _s.OpponentLocation) _s.IsBallMine = !_s.IsBallMine;
             float e = 0;
-            if (_s.IsBallMine) e = (float)Math.Exp(-1 * CalcDistanceToGate(s));
-            else e = (float)Math.Exp(-10 * CalcDistanceToBall(s));
+            if (_s.IsBallMine)
+            {
+                e = (float)Math.Exp(-1 * CalcDistanceToGate(s));
+                if (CalcDistanceToGate(s, true, true) == 0)
+                    _s.MyScore++;
+                else if (CalcDistanceToGate(s, false, true) == 0)
+                    _s.OpponentScore++;
+            }
+            else
+            {
+                e = (float)Math.Exp(-10 * CalcDistanceToBall(s));
+                if (CalcDistanceToGate(s, false, false) == 0)
+                    _s.OpponentScore++;
+                else if (CalcDistanceToGate(s, true, false) == 0)
+                    _s.MyScore++;
+            }
             r = (1 - e) / (1 + e);
             if (_s.IsBallMine) r *= 10;
             else r *= -10;
-            return r + getReward(s);
+            return r + getReward(_s);
         }
         /// <summary>
         /// Calculates the distance to goal 
@@ -254,7 +317,7 @@ namespace Player.RL
         /// <param name="s">Game's status</param>
         /// <param name="opGate">Check distance to opponent's gate or mine?</param>
         /// <returns>The distance to gate</returns>
-        protected static float CalcDistanceToGate(GameState s, bool opGate = true)
+        protected static float CalcDistanceToGate(GameState s, bool opGate = true, bool myDist = true)
         {
             var gColumn = 10;
             var g1 = new System.Drawing.Point(3, gColumn);
@@ -266,6 +329,11 @@ namespace Player.RL
             }
             var x = s.MyLocation.X;
             var y = s.MyLocation.Y;
+            if (!myDist)
+            {
+                x = s.OpponentLocation.X;
+                y = s.OpponentLocation.Y;
+            }
             var g39 = (float)Math.Sqrt(Math.Pow(g1.X - x, 2) + Math.Pow(g1.Y - y, 2));
             var g49 = (float)Math.Sqrt(Math.Pow(g2.X - x, 2) + Math.Pow(g2.Y - y, 2));
             return Math.Min(g39, g49);
