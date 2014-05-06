@@ -7,11 +7,11 @@ namespace Player.RL
     public class GameState
     {
         /// <summary>
-        /// Get my location point
+        /// Get my location point { X: Row # | Y: Column # }
         /// </summary>
         public Point MyLocation { get; private set; }
         /// <summary>
-        /// Get the opponent's location point
+        /// Get the opponent's location point { X: Row # | Y: Column # }
         /// </summary>
         public Point OpponentLocation { get; private set; }
         /// <summary>
@@ -86,9 +86,9 @@ namespace Player.RL
         /// Custom defined hash-code for game state
         /// </summary>
         /// <returns>The hash code</returns>
-        public override int GetHashCode()
+        public new string GetHashCode()
         {
-            return int.Parse(String.Format("{0}{1}{2}{3}{4}", this.MyLocation.X, this.MyLocation.Y, this.OpponentLocation.X, this.OpponentLocation.Y, this.IsBallMine ? 1 : 0));
+            return (String.Format("{0}{1}{2}{3}{4}", this.MyLocation.X, this.MyLocation.Y, this.OpponentLocation.X, this.OpponentLocation.Y, this.IsBallMine ? 1 : 0));
         }
     }
 }

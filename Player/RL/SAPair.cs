@@ -25,9 +25,9 @@ namespace Player.RL
         /// Get unique hash-code for state-action pair
         /// </summary>
         /// <returns>The hash-code</returns>
-        public override int GetHashCode()
+        public new string GetHashCode()
         {
-            return int.Parse(String.Format("{0}{1}", this.State.GetHashCode(), (int)this.Action));
+            return (String.Format("{0}{1}", this.State.GetHashCode(), (int)this.Action));
         }
     }
 }
