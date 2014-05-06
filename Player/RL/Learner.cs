@@ -77,7 +77,7 @@ namespace Player.RL
                 KeyValuePair<float, Direction> nsmqp = new KeyValuePair<float, Direction>(float.NegativeInfinity, Direction.HOLD);
                 foreach (var direction in Enum.GetValues(typeof(Direction)))
                 {
-                    float nsqv = getQVal(gameState, (Direction)direction);
+                    float nsqv = getQVal(gameState, (Direction)direction) + getReward(getNextState(gameState, (Direction)direction));
                     if (nsqv > nsmqp.Key)
                     {
                         nsmqp = new KeyValuePair<float, Direction>(nsqv, (Direction)direction);
@@ -101,7 +101,7 @@ namespace Player.RL
                 // candidate container
                 KeyValuePair<float, Direction> candidate = new KeyValuePair<float, Direction>();
                 // while there is a item in list
-                while(nsmqpl.Count != 0)
+                while (nsmqpl.Count != 0)
                 {
                     lock (RandGen)
                     {
@@ -120,15 +120,16 @@ namespace Player.RL
 #if __DEBUG__
                 DebugUI.AddLine("CAND_INDEX: {0}", candIndex);
 #endif
-__PROCEED:
+            __PROCEED:
                 // update the mution factore for current state
                 updateMutaionFactore(gameState, candidate.Value);
                 //candidate = new KeyValuePair<float, Direction>(getRVal(gameState, Direction.EAST), Direction.EAST);
 #if __DEBUG__
                 DebugUI.AddLine("{0} Candidate Detected.", nsmqpl.Count);
 #endif
-                var R = getRVal(gameState, candidate.Value);
-                var nQv = R + GAMMA * candidate.Key;
+                var nextState = getNextState(gameState, candidate.Value);
+                var R = getReward(gameState);// getRVal(gameState, candidate.Value);
+                var nQv = R + GAMMA * getQVal(gameState, candidate.Value);
 #if __DEBUG__
                 DebugUI.AddText("Q{1} {0:F3} -> ", getQVal(gameState, candidate.Value), "{");
 #endif
@@ -140,7 +141,7 @@ __PROCEED:
 #if __DEBUG__
                 DebugUI.AddLine("{0:F3} {1}, RVAL {2} {3:F3} {1}:\t\t\t\tMOVE `{4}`", getQVal(gameState, candidate.Value), "}", "{", R, candidate.Value.ToString());
 #endif
-                if(GameStates.Count > 0)
+                if (GameStates.Count > 0)
                     GameStates.Pop();
                 // push current game status
                 GameStates.Push(gameState);
@@ -151,6 +152,54 @@ __PROCEED:
                 return candidate.Value;
             }
             catch (Exception e) { Console.WriteLine(); Console.WriteLine(e.ToString()); Debug.WriteLine(e.ToString()); throw e; }
+        }
+        protected static GameState getNextState(GameState s, Direction a)
+        {
+            GameState _s = s.Clone() as GameState;
+            switch (a)
+            {
+                case Direction.HOLD: break;
+                case Direction.NORTH:
+                    _s.MyLocation = new System.Drawing.Point(_s.MyLocation.X - 1, s.MyLocation.Y);
+                    break;
+                case Direction.SOUTH:
+                    _s.MyLocation = new System.Drawing.Point(_s.MyLocation.X + 1, s.MyLocation.Y);
+                    break;
+                case Direction.WEST:
+                    _s.MyLocation = new System.Drawing.Point(_s.MyLocation.X, s.MyLocation.Y - 1);
+                    break;
+                case Direction.EAST:
+                    _s.MyLocation = new System.Drawing.Point(_s.MyLocation.X, s.MyLocation.Y + 1);
+                    break;
+            }
+            if (_s.MyLocation == _s.OpponentLocation) _s.IsBallMine = !_s.IsBallMine;
+            if (_s.IsBallMine)
+            {
+                if (CalcDistanceToGate(s, true, true) == 0)
+                {
+                    _s.MyScore++;
+                    _s.Game_State = GameState.State.PLAYER_SCORED;
+                }
+                else if (CalcDistanceToGate(s, false, true) == 0)
+                {
+                    _s.OpponentScore++;
+                    _s.Game_State = GameState.State.OPPONENT_SCORED;
+                }
+            }
+            else
+            {
+                if (CalcDistanceToGate(s, false, false) == 0)
+                {
+                    _s.OpponentScore++;
+                    _s.Game_State = GameState.State.OPPONENT_SCORED;
+                }
+                else if (CalcDistanceToGate(s, true, false) == 0)
+                {
+                    _s.MyScore++;
+                    _s.Game_State = GameState.State.PLAYER_SCORED;
+                }
+            }
+            return _s;
         }
         /// <summary>
         /// Get reward of passed game status
@@ -164,20 +213,18 @@ __PROCEED:
             // get reward of current state based on combination of current and previous state's status
             float r = 0;
             // +75 if i score-up
-            if (gs.MyScore > GameStates.Peek().MyScore)
+            if (gs.Game_State == GameState.State.PLAYER_SCORED)
             {
-                if (Console.Title.ToLower() == "player0")
-                    System.IO.File.AppendAllLines("goals.log", new string[] { String.Format("GS[{0}]: `{1}` scored-up: `{1}` {2} | OP {3} | MyLoc: {4} | OpLoc: {5}", gs.GameStep, Console.Title, gs.MyScore, gs.OpponentScore, GameStates.Peek().MyLocation, GameStates.Peek().OpponentLocation) });
+                DebugUI.AddLine(String.Format("+ GS[{0}]: ME Scored-up{5}Me: `{1}`{5}|{5}OP: `{2}`{5}|{5}MyLoc: `{3}`{5}|{5}OpLoc: `{4}`", gs.GameStep, gs.MyScore, gs.OpponentScore, GameStates.Peek().MyLocation, GameStates.Peek().OpponentLocation, new string(' ', 4)));
 #if __DEBUG__
                 DebugUI.AddLine("+75.0 ");
 #endif
-                r += 75.0F;
+                r += 100.0F;
             }
             // -100 if i score-down
-            if (gs.OpponentScore > GameStates.Peek().OpponentScore)
+            if (gs.Game_State == GameState.State.OPPONENT_SCORED)
             {
-                if (Console.Title.ToLower() == "player0")
-                    System.IO.File.AppendAllLines("goals.log", new string[] { String.Format("GS[{0}]: `{1}` scored-up: `{1}` {2} | OP {3} | MyLoc: {4} | OpLoc: {5}", gs.GameStep, Console.Title, gs.MyScore, gs.OpponentScore, GameStates.Peek().MyLocation, GameStates.Peek().OpponentLocation) });
+                DebugUI.AddLine(String.Format("- GS[{0}]: OPPONENT Scored-up{5}Me `{1}`{5}|{5}OP `{2}`{5}|{5}MyLoc: `{3}`{5}|{5}OpLoc: `{4}`", gs.GameStep, gs.MyScore, gs.OpponentScore, GameStates.Peek().MyLocation, GameStates.Peek().OpponentLocation, new string(' ', 4)));
 #if __DEBUG__
                 DebugUI.AddLine("-100.0 ");
 #endif
@@ -186,21 +233,36 @@ __PROCEED:
             // +10 if i acquired the bull
             if (!GameStates.Peek().IsBallMine && gs.IsBallMine)
             {
+                DebugUI.AddLine("===== CAUGHT THE BALL =====");
 #if __DEBUG__
                 DebugUI.AddLine("+10.0 ");
 #endif
-                r += 10.0F;
+                r += 50.0F / CalcDistanceToGate(gs, false);
             }
             // -20 if i lost the ball
             if (GameStates.Peek().IsBallMine && !gs.IsBallMine)
             {
+                DebugUI.AddLine("===== LOST THE BALL =====");
 #if __DEBUG__
                 DebugUI.AddLine("-20.0 ");
 #endif
-                r -= 20.0F;
+                r -= 50.0F / CalcDistanceToGate(gs);
             }
-            if (gs.OpponentScore > GameStates.Peek().OpponentScore && GameStates.Peek().MyLocation.Y == 1)
-            { System.IO.File.AppendAllLines("event.log", new string[] { String.Format("GS[{0}]: Made a self-goal: Me {1} | OP {2}", gs.GameStep, gs.MyScore, gs.OpponentScore) }); }
+            float d = 0;
+            if (gs.IsBallMine)
+            {
+                d = (10 * (CalcDistanceToGate(gs)));
+                //DebugUI.AddLine("CalcDistanceToGate(gs) = {0}", d);
+            }
+            else
+            {
+                d = (10 * (CalcDistanceToBall(gs)));
+                //DebugUI.AddLine("CalcDistanceToBall(gs) = {0}", d);
+            }
+            r -= d;
+            //DebugUI.AddLine("r = {0}", r);
+            if (gs.Game_State == GameState.State.OPPONENT_SCORED && GameStates.Peek().IsBallMine)
+            { DebugUI.AddLine(String.Format("GS[{0}]: Made an own-goal: Me {1} | OP {2}", gs.GameStep, gs.MyScore, gs.OpponentScore, Console.Title)); }
             return r;
         }
         /// <summary>
@@ -211,11 +273,11 @@ __PROCEED:
         /// <param name="val">The value of state-action</param>
         protected static void updateQ(GameState s, Direction a, float val)
         {
-            var key = new SAPair(s, a);
-            if (_Q.ContainsKey(key.GetHashCode()))
-                _Q[key.GetHashCode()] = val;
+            var key = new SAPair(s, a).GetHashCode();
+            if (_Q.ContainsKey(key))
+                _Q[key] = val;
             else
-                _Q.Add(key.GetHashCode(), val);
+                _Q.Add(key, val);
         }
         /// <summary>
         /// Calculates the `Q` value
@@ -225,9 +287,33 @@ __PROCEED:
         /// <returns>The `Q` value</returns>
         protected static float getQVal(GameState s, Direction a)
         {
-            var key = new SAPair(s, a);
-            if (_Q.ContainsKey(key.GetHashCode()))
-                return _Q[key.GetHashCode()];
+            var key = new SAPair(s, a).GetHashCode();
+            if (!_Q.ContainsKey(key))
+            {
+                float q = 0;
+                var ns = getNextState(s, a);
+                if (a == Direction.EAST)
+                {
+                    if (ns.IsBallMine) q += 5.0F;
+                    else q -= 5.0F;
+                }
+                if (ns.Game_State == GameState.State.OPPONENT_SCORED) q = float.NegativeInfinity;
+                if (ns.Game_State == GameState.State.PLAYER_SCORED) q = float.PositiveInfinity;
+                updateQ(s, a, q);
+            }
+            // if making an own-goal
+            if (IsInFrontOfGate(s, false) && a == Direction.WEST) updateQ(s, a, float.NegativeInfinity);
+            if (IsInFrontOfGate(s, true))
+            {
+                switch (a)
+                {
+                    case Direction.EAST: updateQ(s, a, float.PositiveInfinity); break;
+                    case Direction.HOLD: updateQ(s, a, +100); break;
+                    default: updateQ(s, a, float.NegativeInfinity); break;
+                }
+            }
+            if (_Q.ContainsKey(key))
+                return _Q[key];
             return 0;
         }
         /// <summary>
@@ -316,6 +402,7 @@ __PROCEED:
         /// </summary>
         /// <param name="s">Game's status</param>
         /// <param name="opGate">Check distance to opponent's gate or mine?</param>
+        /// <param name="myDist">If `true` calculates my distance to a gate; otherwise calculates the opponent's to a gate</param>
         /// <returns>The distance to gate</returns>
         protected static float CalcDistanceToGate(GameState s, bool opGate = true, bool myDist = true)
         {
@@ -334,8 +421,8 @@ __PROCEED:
                 x = s.OpponentLocation.X;
                 y = s.OpponentLocation.Y;
             }
-            var g39 = (float)Math.Sqrt(Math.Pow(g1.X - x, 2) + Math.Pow(g1.Y - y, 2));
-            var g49 = (float)Math.Sqrt(Math.Pow(g2.X - x, 2) + Math.Pow(g2.Y - y, 2));
+            var g39 = (float)(Math.Abs(g1.X - x) + Math.Abs(g1.Y - y));
+            var g49 = (float)(Math.Abs(g2.X - x) + Math.Abs(g2.Y - y));
             return Math.Min(g39, g49);
         }
         /// <summary>
@@ -349,8 +436,20 @@ __PROCEED:
             var b = s.OpponentLocation;
             var x = s.MyLocation.X;
             var y = s.MyLocation.Y;
-            var bd = (float)Math.Sqrt(Math.Pow(b.X - x, 2) + Math.Pow(b.Y - y, 2));
+            var bd = (float)(Math.Abs(b.X - x) + Math.Abs(b.Y - y));
             return bd;
+        }
+        public static bool IsInFrontOfGate(GameState s, bool opGate = true)
+        {
+            var gColumn = 9;
+            var g1 = new System.Drawing.Point(3, gColumn);
+            var g2 = new System.Drawing.Point(4, gColumn);
+            if (!opGate)
+            {
+                g1 = new System.Drawing.Point(3, 1);
+                g2 = new System.Drawing.Point(4, 1);
+            }
+            return s.MyLocation == g1 || s.MyLocation == g2;
         }
     }
 }

@@ -110,6 +110,7 @@ namespace Player
                 }
                 catch (Exception e) { System.IO.File.AppendAllText("error.log", e.ToString()); o("Exception\n[ ABORT ]"); return; }
             } while (gs != null && gs.Game_State != GameState.State.GAME_FINISHED);
+            o("==== Game Ended ====");
         }
     }
 }

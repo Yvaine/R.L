@@ -11,7 +11,8 @@ namespace Player
 {
     public partial class iDebug : Form
     {
-        static bool AlreadyCreated = false;
+        private static bool AlreadyCreated = false;
+        private Queue<String> q = new Queue<String>();
         public iDebug(string title = "Debug")
         {
             if (AlreadyCreated) { this.Show(); return; }
@@ -28,6 +29,22 @@ namespace Player
                 Count = 0;
             else Count = (uint)System.Diagnostics.Process.GetProcessesByName(System.Diagnostics.Process.GetCurrentProcess().ProcessName.Replace(".vshost", "")).Length;
             this.Location = new Point(Screen.PrimaryScreen.Bounds.X, Screen.PrimaryScreen.Bounds.Y + (int)Count * this.Height);
+            new System.Threading.Thread(new System.Threading.ThreadStart(() =>
+            {
+                while (true)
+                {
+                    System.Threading.Thread.Sleep(100);
+                    if (q.Count == 0) { continue; }
+                    string t = q.Dequeue();
+                    if (this.richTextBox1.InvokeRequired)
+                        this.richTextBox1.Invoke(new Action(() =>
+                        {
+                            this.richTextBox1.AppendText(t);
+                        }));
+                    else
+                        this.richTextBox1.AppendText(t);
+                }
+            })).Start();
         }
         /// <summary>
         /// CLear button event handler
@@ -37,11 +54,11 @@ namespace Player
         /// <summary>
         /// Add a line in format
         /// </summary>
-        public void AddLine(string format, params object[] arg) { this.richTextBox1.AppendText(String.Format(format, arg) + "\r\n"); this.updateUI(); }
+        public void AddLine(string format, params object[] arg) { q.Enqueue(String.Format(format, arg) + "\r\n"); this.updateUI(); }
         /// <summary>
         /// Add a text in format
         /// </summary>
-        public void AddText(string format, params object[] arg) { this.richTextBox1.AppendText(String.Format(format, arg)); this.updateUI(); }
+        public void AddText(string format, params object[] arg) { q.Enqueue(String.Format(format, arg)); this.updateUI(); }
         /// <summary>
         /// Add a line
         /// </summary>
