@@ -43,6 +43,14 @@ namespace Player
         /// </summary>
         public void AddText(string format, params object[] arg) { this.richTextBox1.AppendText(String.Format(format, arg)); this.updateUI(); }
         /// <summary>
+        /// Add a line
+        /// </summary>
+        public void AddLine(string text) { this.AddLine("{0}", text); }
+        /// <summary>
+        /// Add a text
+        /// </summary>
+        public void AddText(string text) { this.AddText("{0}", text); }
+        /// <summary>
         /// Clears the text
         /// </summary>
         public void ClearText() { this.btn_clear_Click(new object(), new EventArgs()); }

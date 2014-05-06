@@ -51,18 +51,18 @@ namespace Player
         /// </summary>
         private Player Bootstrap()
         {
-            var pwd = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
-            foreach (var p in new string[] { "ps", "pm" })
-            {
-                foreach (var k in System.Diagnostics.Process.GetProcessesByName(p)) k.Kill();
-                Process.Start(String.Format("{0}/{1}.exe", pwd, p));
-            }
             // update the console's title
             Console.Title += (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName.Replace(".vshost", "")).Length).ToString();
             // if in debug mode??
             if (Process.GetCurrentProcess().ProcessName.Contains(".vshost"))
             {
                 Process.Start(System.Windows.Forms.Application.ExecutablePath);
+                var pwd = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
+                foreach (var p in new string[] { "ps", "pm" })
+                {
+                    foreach (var k in System.Diagnostics.Process.GetProcessesByName(p)) k.Kill();
+                    Process.Start(String.Format("{0}/{1}.exe", pwd, p));
+                }
             }
             return this;
         }

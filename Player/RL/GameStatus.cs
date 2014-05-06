@@ -4,36 +4,44 @@ using System.Drawing;
 
 namespace Player.RL
 {
-    public class GameState
+    public class GameState : ICloneable
     {
+        /// <summary>
+        /// The origin status bytes
+        /// </summary>
+        protected readonly byte[] __status;
+        /// <summary>
+        /// The origin status string
+        /// </summary>
+        protected readonly string __string;
         /// <summary>
         /// Get my location point { X: Row # | Y: Column # }
         /// </summary>
-        public Point MyLocation { get; private set; }
+        public Point MyLocation { get; set; }
         /// <summary>
         /// Get the opponent's location point { X: Row # | Y: Column # }
         /// </summary>
-        public Point OpponentLocation { get; private set; }
+        public Point OpponentLocation { get; set; }
         /// <summary>
         /// Check if ball is mine or not
         /// </summary>
-        public bool IsBallMine { get; private set; }
+        public bool IsBallMine { get; set; }
         /// <summary>
         /// Get the state of game
         /// </summary>
-        public State Game_State { get; private set; }
+        public State Game_State { get; set; }
         /// <summary>
         /// Get game's step
         /// </summary>
-        public ulong GameStep { get; private set; }
+        public ulong GameStep { get; set; }
         /// <summary>
         /// Get my scrore
         /// </summary>
-        public uint MyScore { get; private set; }
+        public uint MyScore { get; set; }
         /// <summary>
         /// Get the opponent's score
         /// </summary>
-        public uint OpponentScore { get; private set; }
+        public uint OpponentScore { get; set; }
         /// <summary>
         /// The state of game
         /// </summary>
@@ -44,8 +52,9 @@ namespace Player.RL
         /// <param name="status">The status bytes</param>
         public GameState(byte[] status)
         {
+            this.__status = status;
             // fetch the status string
-            var __string = Encoding.ASCII.GetString(status).Trim();
+            this.__string = Encoding.ASCII.GetString(status).Trim();
             if (status.Length != 26 || __string.Length != 26)
                 throw new ArgumentException(
                     String.Format("Expecting status bytes to have length of `26`, but got {0}.", status.Length));
@@ -89,6 +98,13 @@ namespace Player.RL
         public new string GetHashCode()
         {
             return (String.Format("{0}{1}{2}{3}{4}", this.MyLocation.X, this.MyLocation.Y, this.OpponentLocation.X, this.OpponentLocation.Y, this.IsBallMine ? 1 : 0));
+        }
+        /// <summary>
+        /// Clone current game's status
+        /// </summary>
+        public object Clone()
+        {
+            return new GameState(this.__status);
         }
     }
 }
