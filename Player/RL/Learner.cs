@@ -36,7 +36,7 @@ namespace Player.RL
             DebugUI.Hide();
             RandGen = new Random(Environment.TickCount);
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
-            t.Interval = 4000;
+            t.Interval = 100;
             t.Tick += new EventHandler((object sender, EventArgs e) =>
             {
                 lock (RandGen)
@@ -44,13 +44,15 @@ namespace Player.RL
                     RandGen = new Random(Environment.TickCount);
                 }
             });
+            System.IO.File.WriteAllText("goals.log", "");
+            System.IO.File.WriteAllText("event.log", "");
         }
         /// <summary>
         /// Initialize the learner
         /// </summary>
         public static void Init()
         {
-            // init game's states 
+            // init game's states
             GameStates = new Stack<GameState>();
             // init hash table
             _Q = new Dictionary<String, float>();
@@ -78,6 +80,9 @@ namespace Player.RL
                         // adding currently updated `nsmqp` into `nsmqpl`.
                         // but for now we need to clear the list
                         nsmqpl.Clear();
+#if __DEBUG__
+                        DebugUI.AddLine("=====CLEARED=====");
+#endif
                     }
                     if (nsqv == nsmqp.Key)
                     {
@@ -114,6 +119,8 @@ namespace Player.RL
 #if __DEBUG__
                 DebugUI.AddLine("{0:F3} {1}, RVAL {2} {3:F3} {1}:\t\t\t\tMOVE `{4}`", getQVal(gameState, candidate.Value), "}", "{", R, candidate.Value.ToString());
 #endif
+                if(GameStates.Count > 0)
+                    GameStates.Pop();
                 // push current game status
                 GameStates.Push(gameState);
 #if __DEBUG__
@@ -152,14 +159,18 @@ namespace Player.RL
             // +75 if i score-up
             if (gs.MyScore > GameStates.Peek().MyScore)
             {
+                if (Console.Title.ToLower() == "player0")
+                    System.IO.File.AppendAllLines("goals.log", new string[] { String.Format("GS[{0}]: `{1}` scored-up: `{1}` {2} | OP {3} | MyLoc: {4} | OpLoc: {5}", gs.GameStep, Console.Title, gs.MyScore, gs.OpponentScore, GameStates.Peek().MyLocation, GameStates.Peek().OpponentLocation) });
 #if __DEBUG__
                 DebugUI.AddLine("+75.0 ");
 #endif
                 r += 75.0F;
             }
             // -100 if i score-down
-            if (GameStates.Peek().OpponentScore > gs.OpponentScore)
+            if (gs.OpponentScore > GameStates.Peek().OpponentScore)
             {
+                if (Console.Title.ToLower() == "player0")
+                    System.IO.File.AppendAllLines("goals.log", new string[] { String.Format("GS[{0}]: `{1}` scored-up: `{1}` {2} | OP {3} | MyLoc: {4} | OpLoc: {5}", gs.GameStep, Console.Title, gs.MyScore, gs.OpponentScore, GameStates.Peek().MyLocation, GameStates.Peek().OpponentLocation) });
 #if __DEBUG__
                 DebugUI.AddLine("-100.0 ");
 #endif
@@ -181,6 +192,8 @@ namespace Player.RL
 #endif
                 r -= 20.0F;
             }
+            if (gs.OpponentScore > GameStates.Peek().OpponentScore && GameStates.Peek().MyLocation.Y == 1)
+            { System.IO.File.AppendAllLines("event.log", new string[] { String.Format("GS[{0}]: Made a self-goal: Me {1} | OP {2}", gs.GameStep, gs.MyScore, gs.OpponentScore) }); }
             return r;
         }
         /// <summary>
@@ -204,7 +217,7 @@ namespace Player.RL
         /// <returns>The `R` value</returns>
         protected static float getRVal(GameState s, Direction a)
         {
-            float r = getReward(s);
+            float r = 0;
             GameState _s = s.Clone() as GameState;
             switch (a)
             {
@@ -226,30 +239,42 @@ namespace Player.RL
             DebugUI.AddLine("GATE DIST: {0}", 100/CalcDistanceToGate(_s));
             DebugUI.AddLine("BALL DIST: {0}", -10*CalcDistanceToBall(_s));
 #endif
-            if (_s.IsBallMine)
-                r += 100 / CalcDistanceToGate(_s);
-            else r -= 10 * CalcDistanceToBall(_s);
-            return r;
-            switch (a)
-            {
-                // +35 if i move toward the opponent's gate
-                case Direction.EAST: r += 35; break;
-                // -10 if i move backward the my own gate
-                case Direction.WEST: r -= 10; break;
-            }
-            return r;
+            if (_s.MyLocation == _s.OpponentLocation) _s.IsBallMine = !_s.IsBallMine;
+            float e = 0;
+            if (_s.IsBallMine) e = (float)Math.Exp(-1 * CalcDistanceToGate(s));
+            else e = (float)Math.Exp(-10 * CalcDistanceToBall(s));
+            r = (1 - e) / (1 + e);
+            if (_s.IsBallMine) r *= 10;
+            else r *= -10;
+            return r + getReward(s);
         }
-        protected static float CalcDistanceToGate(GameState s)
+        /// <summary>
+        /// Calculates the distance to goal 
+        /// </summary>
+        /// <param name="s">Game's status</param>
+        /// <param name="opGate">Check distance to opponent's gate or mine?</param>
+        /// <returns>The distance to gate</returns>
+        protected static float CalcDistanceToGate(GameState s, bool opGate = true)
         {
             var gColumn = 10;
             var g1 = new System.Drawing.Point(3, gColumn);
             var g2 = new System.Drawing.Point(4, gColumn);
+            if (!opGate)
+            {
+                g1 = new System.Drawing.Point(3, 0);
+                g2 = new System.Drawing.Point(4, 0);
+            }
             var x = s.MyLocation.X;
             var y = s.MyLocation.Y;
             var g39 = (float)Math.Sqrt(Math.Pow(g1.X - x, 2) + Math.Pow(g1.Y - y, 2));
             var g49 = (float)Math.Sqrt(Math.Pow(g2.X - x, 2) + Math.Pow(g2.Y - y, 2));
             return Math.Min(g39, g49);
         }
+        /// <summary>
+        /// Calculates the distance to the ball
+        /// </summary>
+        /// <param name="s">Game's status</param>
+        /// <returns>The distance to ball</returns>
         protected static float CalcDistanceToBall(GameState s)
         {
             if (s.IsBallMine) return 0;
