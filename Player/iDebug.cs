@@ -33,16 +33,21 @@ namespace Player
             {
                 while (true)
                 {
-                    System.Threading.Thread.Sleep(100);
-                    if (q.Count == 0) { continue; }
-                    string t = q.Dequeue();
-                    if (this.richTextBox1.InvokeRequired)
-                        this.richTextBox1.Invoke(new Action(() =>
-                        {
+                    try
+                    {
+                        System.Threading.Thread.Sleep(100);
+                        if (q.Count == 0) { continue; }
+                        string t = "";
+                        lock (this) t = q.Dequeue();
+                        if (this.richTextBox1.InvokeRequired)
+                            this.richTextBox1.Invoke(new Action(() =>
+                            {
+                                this.richTextBox1.AppendText(t);
+                            }));
+                        else
                             this.richTextBox1.AppendText(t);
-                        }));
-                    else
-                        this.richTextBox1.AppendText(t);
+                    }
+                    catch { }
                 }
             })).Start();
         }
@@ -54,11 +59,11 @@ namespace Player
         /// <summary>
         /// Add a line in format
         /// </summary>
-        public void AddLine(string format, params object[] arg) { q.Enqueue(String.Format(format, arg) + "\r\n"); this.updateUI(); }
+        public void AddLine(string format, params object[] arg) { lock (this) q.Enqueue(String.Format(format, arg) + "\r\n"); this.updateUI(); }
         /// <summary>
         /// Add a text in format
         /// </summary>
-        public void AddText(string format, params object[] arg) { q.Enqueue(String.Format(format, arg)); this.updateUI(); }
+        public void AddText(string format, params object[] arg) { lock (this) q.Enqueue(String.Format(format, arg)); this.updateUI(); }
         /// <summary>
         /// Add a line
         /// </summary>
