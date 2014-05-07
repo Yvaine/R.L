@@ -1,5 +1,5 @@
 ﻿#undef __DEBUG__
-#define __USE_PREPROCESSED_Q__
+//#define __USE_PREPROCESSED_Q__
 using System.Collections.Generic;
 using System;
 using System.Collections;
@@ -66,35 +66,37 @@ namespace Player.RL
             try
             {
                 // next-state max Q pair list
-                List<KeyValuePair<float, Direction>> nsmqpl = new List<KeyValuePair<float, Direction>>();
+                List<KeyValuePair<KeyValuePair<float, float>, Direction>> nsmqpl = new List<KeyValuePair<KeyValuePair<float, float>, Direction>>();
                 // next-state all possible Q pair list
-                List<KeyValuePair<float, Direction>> nsAPqpl = new List<KeyValuePair<float, Direction>>();
+                List<KeyValuePair<KeyValuePair<float, float>, Direction>> nsAPqpl = new List<KeyValuePair<KeyValuePair<float, float>, Direction>>();
                 // next-state max Q pair
-                KeyValuePair<float, Direction> nsmqp = new KeyValuePair<float, Direction>(float.NegativeInfinity, Direction.HOLD);
+                KeyValuePair<KeyValuePair<float, float>, Direction> nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(new KeyValuePair<float, float>(float.NegativeInfinity, float.NegativeInfinity), Direction.HOLD);
                 foreach (var direction in Enum.GetValues(typeof(Direction)))
                 {
                     // fetch the Next-State Q Value.
-                    float nsqv = getQVal(gameState, (Direction)direction) + getReward(getNextState(gameState, (Direction)direction), gameState);
+                    var nsqv = new KeyValuePair<float, float>(getQVal(gameState, (Direction)direction), getReward(getNextState(gameState, (Direction)direction), gameState));
                     // add it to all possible next-state list
-                    nsAPqpl.Add(new KeyValuePair<float,Direction>(nsqv, (Direction)direction));
+                    nsAPqpl.Add(new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction));
+                    var nsqvV = nsqv.Key + nsqv.Value;
+                    var nsmqpV = nsmqp.Key.Key + nsmqp.Key.Value;
                     // check for MAX value
-                    if (nsqv > nsmqp.Key)
+                    if ( nsqvV > nsmqpV)
                     {
-                        nsmqp = new KeyValuePair<float, Direction>(nsqv, (Direction)direction);
+                        nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction);
                         // in next `if` statementment we will fall-back to
                         // adding currently updated `nsmqp` into `nsmqpl`.
                         // but for now we need to clear the list
                         nsmqpl.Clear();
                     }
                     // if current next-state is equal to MAX
-                    if (nsqv == nsmqp.Key)
+                    if (nsqvV == nsmqp.Key.Key + nsmqp.Key.Value)
                         // add it to MAX list too
-                        nsmqpl.Add(new KeyValuePair<float, Direction>(nsqv, (Direction)direction));
+                        nsmqpl.Add(new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction));
                 }
                 // init the candidate index
                 int candIndex = -1;
                 // candidate container
-                KeyValuePair<float, Direction> candidate = new KeyValuePair<float, Direction>();
+                KeyValuePair<KeyValuePair<float, float>, Direction> candidate = new KeyValuePair<KeyValuePair<float, float>, Direction>();
                 // while there is a item in list
                 while (nsmqpl.Count != 0)
                 {
@@ -121,7 +123,7 @@ namespace Player.RL
                 // update the mution factore for current state
                 updateMutaionFactore(gameState, candidate.Value);
                 // the New Q Value
-                var nQv = getReward(gameState) + GAMMA * candidate.Key;
+                var nQv = getReward(gameState) + GAMMA * candidate.Key.Key;
                 // update the Q value
                 updateQ(
                     gameState,          // The state
