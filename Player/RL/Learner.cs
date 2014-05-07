@@ -11,7 +11,7 @@ namespace Player.RL
         /// <summary>
         /// The gamma value for Q-Learning
         /// </summary>
-        protected const float GAMMA = 0.8F;
+        protected const float GAMMA = 0.5F;
         /// <summary>
         /// The game states' stack
         /// </summary>
@@ -123,7 +123,7 @@ namespace Player.RL
                 // update the mution factore for current state
                 updateMutaionFactore(gameState, candidate.Value);
                 // the New Q Value
-                var nQv = 500 * getReward(gameState) / gameState.GameStep + GAMMA * candidate.Key.Key;
+                var nQv = gameState.GameStep * getReward(gameState) / gameState.GameStep + GAMMA * candidate.Key.Key;
                 // update the Q value
                 updateQ(
                     gameState,          // The state
@@ -217,11 +217,12 @@ namespace Player.RL
                 r -= 50.0F / CalcDistanceToGate(gs, true);
             // if i am in position of the ball
             if (gs.IsBallMine)
-                // make the agent eager to push toward the opponent's gate
-                r -= (10 * (CalcDistanceToGate(gs)));
+                // it is good to catch the ball nearby the friendly gate
+                // to prevent the opponent to make a goal
+                r += (50.0F / CalcDistanceToGate(gs, true));
             else
                 // make the agent eager to go and catch the ball
-                r -= (20 * (CalcDistanceToBall(gs)));
+                r -= (50.0F * (CalcDistanceToBall(gs)));
             return r;
         }
         /// <summary>
