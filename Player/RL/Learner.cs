@@ -1,11 +1,13 @@
 ﻿#undef __DEBUG__
 //#define __USE_PREPROCESSED_Q__
-using System.Collections.Generic;
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 namespace Player.RL
 {
+    /// <summary>
+    /// Learns how to play soccer using Reinforcement Learning's technique
+    /// </summary>
     class Learner
     {
         /// <summary>
@@ -24,10 +26,12 @@ namespace Player.RL
         /// Holds mutation factores
         /// </summary>
         protected static KeyValuePair<SAPair, uint> PrevMutationFactore { get; set; }
+#if __DEBUG__
         /// <summary>
         /// Debug UI handler
         /// </summary>
         protected static iDebug DebugUI { get; set; }
+#endif
         /// <summary>
         /// Random number generator
         /// </summary>
@@ -37,12 +41,20 @@ namespace Player.RL
         /// </summary>
         static Learner()
         {
+#if __DEBUG__
             DebugUI = new iDebug(Console.Title);
             DebugUI.Hide();
+#endif
+            // init random # generator
             RandGen = new Random(Environment.TickCount);
+            // init previous mutation factore container
             PrevMutationFactore = new KeyValuePair<SAPair, uint>();
+            /**
+             * Make timer to update the random # generator's seed value
+             */
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
             t.Tick += new EventHandler((object sender, EventArgs e) => { lock (RandGen)RandGen = new Random(Environment.TickCount); });
+            // with 100ms interval
             t.Interval = 100;
             t.Start();
         }
@@ -65,11 +77,11 @@ namespace Player.RL
         {
             try
             {
-                // next-state max Q pair list
+                // Next-State Max Q Pair List
                 List<KeyValuePair<KeyValuePair<float, float>, Direction>> nsmqpl = new List<KeyValuePair<KeyValuePair<float, float>, Direction>>();
-                // next-state all possible Q pair list
+                // Next-State All Possible Q Pair List
                 List<KeyValuePair<KeyValuePair<float, float>, Direction>> nsAPqpl = new List<KeyValuePair<KeyValuePair<float, float>, Direction>>();
-                // next-state max Q pair
+                // Next-State Max Q Pair
                 KeyValuePair<KeyValuePair<float, float>, Direction> nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(new KeyValuePair<float, float>(float.NegativeInfinity, float.NegativeInfinity), Direction.HOLD);
                 foreach (var direction in Enum.GetValues(typeof(Direction)))
                 {
@@ -77,13 +89,15 @@ namespace Player.RL
                     var nsqv = new KeyValuePair<float, float>(getQVal(gameState, (Direction)direction), getReward(getNextState(gameState, (Direction)direction), gameState));
                     // add it to all possible next-state list
                     nsAPqpl.Add(new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction));
+                    // fetch Next-State Q Value's Value
                     var nsqvV = nsqv.Key + nsqv.Value;
+                    // fetch Next-State Max Q Pair's Value
                     var nsmqpV = nsmqp.Key.Key + nsmqp.Key.Value;
                     // check for MAX value
                     if ( nsqvV > nsmqpV)
                     {
                         nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction);
-                        // in next `if` statementment we will fall-back to
+                        // in next `if` statement we will fall-back to
                         // adding currently updated `nsmqp` into `nsmqpl`.
                         // but for now we need to clear the list
                         nsmqpl.Clear();
@@ -142,6 +156,44 @@ namespace Player.RL
             catch (Exception e) { Console.WriteLine(); Console.WriteLine(e.ToString()); Debug.WriteLine(e.ToString()); throw e; }
         }
         /// <summary>
+        /// Get reward of passed game status
+        /// </summary>
+        /// <param name="gs">The game state</param>
+        /// <param name="prevgs">[OPTIONAL] The previous game state; If not provided the top of stack will be used!</param>
+        /// <returns>The related reward for passed game state</returns>
+        protected static float getReward(GameState gs, GameState prevgs = null)
+        {
+            // if no previously game state has been recorded
+            if (GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
+            // if no previous game state has been provided? select the top of the stack
+            if (prevgs == null) prevgs = GameStates.Peek();
+            // get reward of current state based on combination of current and previous state's status
+            float r = 0;
+            // +100 if i score-up
+            if (gs.Game_State == GameState.State.PLAYER_SCORED) r += 100.0F;
+            // -100 if i score-down
+            if (gs.Game_State == GameState.State.OPPONENT_SCORED) r -= 100.0F;
+            // dynamic reward if i acquired the bull
+            if (!prevgs.IsBallMine && gs.IsBallMine)
+                // it is good to catch the ball nearby the friendly gate
+                // to prevent the opponent to make a goal
+                r += 50.0F / CalcDistanceToGate(gs, false);
+            // dynamic reward if i lost the ball
+            if (prevgs.IsBallMine && !gs.IsBallMine)
+                // it is worst if we lost the ball nearby the opponent's gate
+                // to make a goal opportunity
+                r -= 50.0F / CalcDistanceToGate(gs, true);
+            // if i am in position of the ball
+            if (gs.IsBallMine)
+                // make the agent eager to go make a goal
+                r += (50.0F / CalcDistanceToGate(gs, true));
+            else
+                // make the agent eager to go and catch the ball
+                r -= (10.0F * (CalcDistanceToBall(gs)));
+            // return the reward value
+            return r;
+        }
+        /// <summary>
         /// Get next state of the game based on an action
         /// </summary>
         /// <param name="s">Current state of the game</param>
@@ -186,44 +238,6 @@ namespace Player.RL
                 else if (CalcDistanceToGate(s, true, false) == 0) { _s.MyScore++; _s.Game_State = GameState.State.PLAYER_SCORED; }
             }
             return _s;
-        }
-        /// <summary>
-        /// Get reward of passed game status
-        /// </summary>
-        /// <param name="gs">The game state</param>
-        /// <param name="prevgs">[OPTIONAL] The previous game state; If not provided the top of stack will be used!</param>
-        /// <returns>The related reward for passed game state</returns>
-        protected static float getReward(GameState gs, GameState prevgs = null)
-        {
-            // if no previously game state has been recorded
-            if (GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
-            // if no previous game state has been provided? select the top of the stack
-            if (prevgs == null) prevgs = GameStates.Peek();
-            // get reward of current state based on combination of current and previous state's status
-            float r = 0;
-            // +100 if i score-up
-            if (gs.Game_State == GameState.State.PLAYER_SCORED) r += 100.0F;
-            // -100 if i score-down
-            if (gs.Game_State == GameState.State.OPPONENT_SCORED) r -= 100.0F;
-            // dynamic reward if i acquired the bull
-            if (!prevgs.IsBallMine && gs.IsBallMine)
-                // it is good to catch the ball nearby the friendly gate
-                // to prevent the opponent to make a goal
-                r += 50.0F / CalcDistanceToGate(gs, false);
-            // dynamic reward if i lost the ball
-            if (prevgs.IsBallMine && !gs.IsBallMine)
-                // it is worst if we lost the ball nearby the opponent's gate
-                // to make a goal opportunity
-                r -= 50.0F / CalcDistanceToGate(gs, true);
-            // if i am in position of the ball
-            if (gs.IsBallMine)
-                // it is good to catch the ball nearby the friendly gate
-                // to prevent the opponent to make a goal
-                r += (50.0F / CalcDistanceToGate(gs, true));
-            else
-                // make the agent eager to go and catch the ball
-                r -= (10.0F * (CalcDistanceToBall(gs)));
-            return r;
         }
         /// <summary>
         /// Updates the `Q` table
@@ -352,6 +366,7 @@ namespace Player.RL
             var bd = (float)(Math.Abs(b.X - x) + Math.Abs(b.Y - y));
             return bd;
         }
+#if __USE_PREPROCESSED_Q__
         /// <summary>
         /// Check if the state is in front of a gate
         /// </summary>
@@ -370,5 +385,6 @@ namespace Player.RL
             }
             return s.MyLocation == g1 || s.MyLocation == g2;
         }
+#endif
     }
 }
