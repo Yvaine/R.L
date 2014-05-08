@@ -123,7 +123,7 @@ namespace Player.RL
                 // update the mution factore for current state
                 updateMutaionFactore(gameState, candidate.Value);
                 // the New Q Value
-                var nQv = getReward(gameState) + GAMMA * candidate.Key.Key / gameState.GameStep;
+                var nQv = getReward(gameState) + GAMMA * (candidate.Key.Key + GAMMA * candidate.Key.Value) / gameState.GameStep;
                 // update the Q value
                 updateQ(
                     gameState,          // The state
