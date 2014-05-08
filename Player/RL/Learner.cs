@@ -123,7 +123,7 @@ namespace Player.RL
                 // update the mution factore for current state
                 updateMutaionFactore(gameState, candidate.Value);
                 // the New Q Value
-                var nQv = getReward(gameState) + GAMMA * (candidate.Key.Key + GAMMA * candidate.Key.Value);
+                var nQv = getReward(gameState) + GAMMA * (candidate.Key.Key + candidate.Key.Value);
                 // update the Q value
                 updateQ(
                     gameState,          // The state
@@ -222,7 +222,7 @@ namespace Player.RL
                 r += (50.0F / CalcDistanceToGate(gs, true));
             else
                 // make the agent eager to go and catch the ball
-                r -= (50.0F * (CalcDistanceToBall(gs)));
+                r -= (10.0F * (CalcDistanceToBall(gs)));
             return r;
         }
         /// <summary>
