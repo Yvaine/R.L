@@ -11,7 +11,7 @@ namespace Player.RL
         /// <summary>
         /// The gamma value for Q-Learning
         /// </summary>
-        protected const float GAMMA = 0.5F;
+        protected const float GAMMA = 0.8F;
         /// <summary>
         /// The game states' stack
         /// </summary>
@@ -123,7 +123,7 @@ namespace Player.RL
                 // update the mution factore for current state
                 updateMutaionFactore(gameState, candidate.Value);
                 // the New Q Value
-                var nQv = gameState.GameStep * getReward(gameState) / gameState.GameStep + GAMMA * candidate.Key.Key;
+                var nQv = getReward(gameState) + GAMMA * candidate.Key.Key / gameState.GameStep;
                 // update the Q value
                 updateQ(
                     gameState,          // The state
