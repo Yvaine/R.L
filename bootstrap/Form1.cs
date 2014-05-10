@@ -18,7 +18,7 @@ namespace bootstrap
 
         private void button1_Click(object sender, EventArgs e)
         {
-            foreach (var p in new string[] { "ps", "pm", "Player", "Player.vshost" })
+            foreach (var p in new string[] { "ps", "pm", "pc", "Player", "Player.vshost" })
             {
                 foreach (var k in System.Diagnostics.Process.GetProcessesByName(p)) k.Kill();
             }

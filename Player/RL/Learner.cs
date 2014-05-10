@@ -13,7 +13,7 @@ namespace Player.RL
         /// <summary>
         /// The gamma value for Q-Learning
         /// </summary>
-        protected const float GAMMA = 0.8F;
+        protected const float GAMMA = 0.5F;
         /// <summary>
         /// The game states' stack
         /// </summary>
@@ -23,9 +23,9 @@ namespace Player.RL
         /// </summary>
         protected static Dictionary<String, float> _Q { get; set; }
         /// <summary>
-        /// Holds mutation factores
+        /// Holds mutation factors
         /// </summary>
-        protected static KeyValuePair<SAPair, uint> PrevMutationFactore { get; set; }
+        protected static KeyValuePair<SAPair, uint> PrevMutationfactor { get; set; }
 #if __DEBUG__
         /// <summary>
         /// Debug UI handler
@@ -47,8 +47,8 @@ namespace Player.RL
 #endif
             // init random # generator
             RandGen = new Random(Environment.TickCount);
-            // init previous mutation factore container
-            PrevMutationFactore = new KeyValuePair<SAPair, uint>();
+            // init previous mutation factor container
+            PrevMutationfactor = new KeyValuePair<SAPair, uint>();
             /**
              * Make timer to update the random # generator's seed value
              */
@@ -121,8 +121,11 @@ namespace Player.RL
                         candIndex = RandGen.Next(0, nsmqpl.Count);
                     // pick a random candidate
                     candidate = nsmqpl[candIndex];
-                    // validate the mutation factore
-                    if (getMutationVal(gameState, candidate.Value) < 5) goto __PROCEED;
+                    // validate the mutation factor
+                    // why the THRESHOLD is {10}? because we should give the agent the change
+                    // if he want to cross-pass the whole horizon ith out getting intruptted by
+                    // mutation factor.
+                    if (getMutationVal(gameState, candidate.Value) < 10) goto __PROCEED;
                     // remove the current
                     nsmqpl.RemoveAt(candIndex);
                 }
@@ -136,8 +139,8 @@ namespace Player.RL
                 // make the random choosen as candidate
                 candidate = nsAPqpl[candIndex];
             __PROCEED:
-                // update the mution factore for current state
-                updateMutaionFactore(gameState, candidate.Value);
+                // update the mution factor for current state
+                updateMutaionFactor(gameState, candidate.Value);
                 // the New Q Value
                 var nQv = getReward(gameState) + GAMMA * (candidate.Key.Key + candidate.Key.Value);
                 // update the Q value
@@ -195,6 +198,8 @@ namespace Player.RL
         {
             // if no previously game state has been recorded
             if (GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
+            // flag that we have peeked prev-gs from stack
+            bool STACK_PEEKED = (prevgs == null);
             // if no previous game state has been provided? select the top of the stack
             if (prevgs == null) prevgs = GameStates.Peek();
             // get reward of current state based on combination of current and previous state's status
@@ -216,10 +221,15 @@ namespace Player.RL
             // if i am in position of the ball
             if (gs.IsBallMine)
                 // make the agent eager to go make a goal
-                r += (50.0F / CalcDistanceToGate(gs, true));
+                r += (70.0F / CalcDistanceToGate(gs, true));
             else
                 // make the agent eager to go and catch the ball
-                r -= (10.0F * (CalcDistanceToBall(gs)));
+                r -= (30.0F * (CalcDistanceToBall(gs)));
+            // if i made an own-goal?
+            if (STACK_PEEKED && prevgs.IsBallMine && gs.Game_State == GameState.State.OPPONENT_SCORED)
+                // if i made an own-goal, the direction would be 100% {WEST}.
+                // if i made an own-goal, update the previous game-state's Q's value to {-INF}
+                updateQ(prevgs, Direction.WEST, float.NegativeInfinity);
             // return the reward value
             return r;
         }
@@ -327,31 +337,31 @@ namespace Player.RL
             return 0;
         }
         /// <summary>
-        /// Updates the `MutationFactore` table
+        /// Updates the `Mutationfactor` table
         /// </summary>
         /// <param name="s">The game state</param>
         /// <param name="a">The action</param>
-        /// <param name="val">The mutation factore's value</param>
-        protected static void updateMutaionFactore(GameState s, Direction a)
+        /// <param name="val">The mutation factor's value</param>
+        protected static void updateMutaionFactor(GameState s, Direction a)
         {
             var key = new SAPair(s, a);
             uint val = 0;
-            if (PrevMutationFactore.Key != null && PrevMutationFactore.Key.GetHashCode() == key.GetHashCode())
-                val = PrevMutationFactore.Value + 1;
-            PrevMutationFactore = new KeyValuePair<SAPair, uint>(key, val);
+            if (PrevMutationfactor.Key != null && PrevMutationfactor.Key.GetHashCode() == key.GetHashCode())
+                val = PrevMutationfactor.Value + 1;
+            PrevMutationfactor = new KeyValuePair<SAPair, uint>(key, val);
         }
         /// <summary>
-        /// Get `MutationFactore` for the state-action
+        /// Get `Mutationfactor` for the state-action
         /// </summary>
         /// <param name="s">For the game state</param>
         /// <param name="a">For the action</param>
-        /// <returns>The mutation factore's value</returns>
+        /// <returns>The mutation factor's value</returns>
         protected static uint getMutationVal(GameState s, Direction a)
         {
-            if (PrevMutationFactore.Key == null) return 0;
+            if (PrevMutationfactor.Key == null) return 0;
             var key = new SAPair(s, a);
-            if (PrevMutationFactore.Key.GetHashCode() == key.GetHashCode())
-                return PrevMutationFactore.Value;
+            if (PrevMutationfactor.Key.GetHashCode() == key.GetHashCode())
+                return PrevMutationfactor.Value;
             return 0;
         }
         /// <summary>
