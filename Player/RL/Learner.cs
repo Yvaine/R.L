@@ -164,15 +164,25 @@ namespace Player.RL
         /// <returns>The valid game directions</returns>
         protected static IEnumerable<Direction> getValidDirections(GameState gameState)
         {
-            List<Direction> directions = new List<Direction>() { Direction.HOLD };
+            List<Direction> directions = new List<Direction>() { /* constant direction for any state */ Direction.HOLD };
+            // if not on horizontal edges?
             if (gameState.MyLocation.X > 1 && gameState.MyLocation.X < 6) directions.AddRange(new[] { Direction.NORTH, Direction.SOUTH });
+            // if on top edge?
             if (gameState.MyLocation.X == 1) directions.Add(Direction.SOUTH);
+            // if on bottom edge?
             if (gameState.MyLocation.X == 6) directions.Add(Direction.NORTH);
+            // if not on vertical edges?
             if (gameState.MyLocation.Y > 1 && gameState.MyLocation.Y < 9) directions.AddRange(new[] { Direction.EAST, Direction.WEST });
+            // if on left edge?
             if (gameState.MyLocation.Y == 1) directions.Add(Direction.EAST);
+            // if on right edge?
             if (gameState.MyLocation.Y == 9) directions.Add(Direction.WEST);
+            // if we are in front if any gate? /* YES: Add a direction to the gate */
+            // my own gate?
             if (gameState.MyLocation.Y == 1 && (gameState.MyLocation.X == 3 || gameState.MyLocation.X == 4)) directions.Add(Direction.WEST);
+            // opponent's gate?
             if (gameState.MyLocation.Y == 9 && (gameState.MyLocation.X == 3 || gameState.MyLocation.X == 4)) directions.Add(Direction.EAST);
+            // return directions
             return directions;
         }
         /// <summary>
