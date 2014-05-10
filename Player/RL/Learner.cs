@@ -83,12 +83,14 @@ namespace Player.RL
                 List<KeyValuePair<KeyValuePair<float, float>, Direction>> nsAPqpl = new List<KeyValuePair<KeyValuePair<float, float>, Direction>>();
                 // Next-State Max Q Pair
                 KeyValuePair<KeyValuePair<float, float>, Direction> nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(new KeyValuePair<float, float>(float.NegativeInfinity, float.NegativeInfinity), Direction.HOLD);
-                foreach (var direction in Enum.GetValues(typeof(Direction)))
+                foreach (Direction direction in getValidDirections(gameState))
                 {
                     // fetch the Next-State Q Value.
-                    var nsqv = new KeyValuePair<float, float>(getQVal(gameState, (Direction)direction), getReward(getNextState(gameState, (Direction)direction), gameState));
+                    var nsqv = new KeyValuePair<float, float>(getQVal(gameState, direction), getReward(getNextState(gameState, direction), gameState));
+                    // current next-state pair
+                    var cnsp = new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, direction);
                     // add it to all possible next-state list
-                    nsAPqpl.Add(new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction));
+                    nsAPqpl.Add(cnsp);
                     // fetch Next-State Q Value's Value
                     var nsqvV = nsqv.Key + nsqv.Value;
                     // fetch Next-State Max Q Pair's Value
@@ -96,7 +98,7 @@ namespace Player.RL
                     // check for MAX value
                     if ( nsqvV > nsmqpV)
                     {
-                        nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction);
+                        nsmqp = cnsp;
                         // in next `if` statement we will fall-back to
                         // adding currently updated `nsmqp` into `nsmqpl`.
                         // but for now we need to clear the list
@@ -105,7 +107,7 @@ namespace Player.RL
                     // if current next-state is equal to MAX
                     if (nsqvV == nsmqp.Key.Key + nsmqp.Key.Value)
                         // add it to MAX list too
-                        nsmqpl.Add(new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, (Direction)direction));
+                        nsmqpl.Add(cnsp);
                 }
                 // init the candidate index
                 int candIndex = -1;
@@ -154,6 +156,24 @@ namespace Player.RL
                 return candidate.Value;
             }
             catch (Exception e) { Console.WriteLine(); Console.WriteLine(e.ToString()); Debug.WriteLine(e.ToString()); throw e; }
+        }
+        /// <summary>
+        /// Get valid directions of a game state
+        /// </summary>
+        /// <param name="gameState">The game state</param>
+        /// <returns>The valid game directions</returns>
+        protected static IEnumerable<Direction> getValidDirections(GameState gameState)
+        {
+            List<Direction> directions = new List<Direction>() { Direction.HOLD };
+            if (gameState.MyLocation.X > 1 && gameState.MyLocation.X < 6) directions.AddRange(new[] { Direction.NORTH, Direction.SOUTH });
+            if (gameState.MyLocation.X == 1) directions.Add(Direction.SOUTH);
+            if (gameState.MyLocation.X == 6) directions.Add(Direction.NORTH);
+            if (gameState.MyLocation.Y > 1 && gameState.MyLocation.Y < 9) directions.AddRange(new[] { Direction.EAST, Direction.WEST });
+            if (gameState.MyLocation.Y == 1) directions.Add(Direction.EAST);
+            if (gameState.MyLocation.Y == 9) directions.Add(Direction.WEST);
+            if (gameState.MyLocation.Y == 1 && (gameState.MyLocation.X == 3 || gameState.MyLocation.X == 4)) directions.Add(Direction.WEST);
+            if (gameState.MyLocation.Y == 9 && (gameState.MyLocation.X == 3 || gameState.MyLocation.X == 4)) directions.Add(Direction.EAST);
+            return directions;
         }
         /// <summary>
         /// Get reward of passed game status
