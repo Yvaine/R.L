@@ -83,6 +83,7 @@ namespace Player.RL
                 List<KeyValuePair<KeyValuePair<float, float>, Direction>> nsAPqpl = new List<KeyValuePair<KeyValuePair<float, float>, Direction>>();
                 // Next-State Max Q Pair
                 KeyValuePair<KeyValuePair<float, float>, Direction> nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(new KeyValuePair<float, float>(float.NegativeInfinity, float.NegativeInfinity), Direction.HOLD);
+                // foreach valid directions
                 foreach (Direction direction in getValidDirections(gameState))
                 {
                     // fetch the Next-State Q Value.
@@ -117,14 +118,13 @@ namespace Player.RL
                 while (nsmqpl.Count != 0)
                 {
                     // pick a randon index
-                    lock (RandGen)
-                        candIndex = RandGen.Next(0, nsmqpl.Count);
+                    lock (RandGen) candIndex = RandGen.Next(0, nsmqpl.Count);
                     // pick a random candidate
                     candidate = nsmqpl[candIndex];
                     // validate the mutation factor
-                    // why the THRESHOLD is {10}? because we should give the agent the change
-                    // if he want to cross-pass the whole horizon ith out getting intruptted by
-                    // mutation factor.
+                    // why the THRESHOLD is {10}? because we should give the agent the chance
+                    // if he wants to cross-pass the whole horizon with one direction without 
+                    // getting intruptted by mutation factor.
                     if (getMutationVal(gameState, candidate.Value) < 10) goto __PROCEED;
                     // remove the current
                     nsmqpl.RemoveAt(candIndex);
@@ -248,7 +248,7 @@ namespace Player.RL
              */
             switch (a)
             {
-                case Direction.HOLD: break;
+                case Direction.HOLD: /* return currently cloned state */ return _s;
                 case Direction.NORTH:
                     _s.MyLocation = new System.Drawing.Point(_s.MyLocation.X - 1, s.MyLocation.Y);
                     break;
