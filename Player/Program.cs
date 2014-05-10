@@ -15,6 +15,10 @@ namespace Player
         /// </summary>
         private Socket Channel { get; set; }
         /// <summary>
+        /// The leaner entity
+        /// </summary>
+        private Learner __Leaner { get; set; }
+        /// <summary>
         /// Shortcut for `Console.WriteLine()`
         /// </summary>
         private void o(string format, params object[] arg) { Console.WriteLine(format, arg); }
@@ -87,7 +91,8 @@ namespace Player
             this.Channel.Send(this.s2b("I:{0}", Console.Title));
             o("Connected to server ....");
             // init the learner
-            Learner.Init();
+            this.__Leaner = new Learner();
+            this.__Leaner.Init();
             return this;
         }
         /// <summary>
@@ -104,7 +109,7 @@ namespace Player
                     int rcv = this.Channel.Receive(status);
                     if (rcv == 0) { o("!!Connection Dropped!!"); return; }
                     gs = new GameState(status);
-                    Direction direction = Learner.ChooseAction(gs);
+                    Direction direction = this.__Leaner.ChooseAction(gs);
                     this.Channel.Send(this.s2b(((int)direction).ToString()));
                     o("Moved: {0}", direction.ToString());
                 }

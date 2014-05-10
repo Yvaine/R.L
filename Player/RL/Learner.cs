@@ -17,43 +17,43 @@ namespace Player.RL
         /// <summary>
         /// The game states' stack
         /// </summary>
-        protected static Stack<GameState> GameStates { get; set; }
+        protected Stack<GameState> GameStates { get; set; }
         /// <summary>
         /// The `Q` matrix
         /// </summary>
-        protected static Dictionary<String, float> _Q { get; set; }
+        protected Dictionary<String, float> _Q { get; set; }
         /// <summary>
         /// Holds mutation factors
         /// </summary>
-        protected static KeyValuePair<SAPair, uint> PrevMutationfactor { get; set; }
+        protected KeyValuePair<SAPair, uint> PrevMutationfactor { get; set; }
 #if __DEBUG__
         /// <summary>
         /// Debug UI handler
         /// </summary>
-        protected static iDebug DebugUI { get; set; }
+        protected iDebug DebugUI { get; set; }
 #endif
         /// <summary>
         /// Random number generator
         /// </summary>
-        protected static Random RandGen { get; set; }
+        protected Random RandGen { get; set; }
         /// <summary>
-        /// Static constructor
+        /// constructor
         /// </summary>
-        static Learner()
+        public Learner()
         {
 #if __DEBUG__
-            DebugUI = new iDebug(Console.Title);
-            DebugUI.Hide();
+            this.DebugUI = new iDebug(Console.Title);
+            this.DebugUI.Hide();
 #endif
             // init random # generator
-            RandGen = new Random(Environment.TickCount);
+            this.RandGen = new Random(Environment.TickCount);
             // init previous mutation factor container
-            PrevMutationfactor = new KeyValuePair<SAPair, uint>();
+            this.PrevMutationfactor = new KeyValuePair<SAPair, uint>();
             /**
              * Make timer to update the random # generator's seed value
              */
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
-            t.Tick += new EventHandler((object sender, EventArgs e) => { lock (RandGen)RandGen = new Random(Environment.TickCount); });
+            t.Tick += new EventHandler((object sender, EventArgs e) => { lock (this.RandGen)this.RandGen = new Random(Environment.TickCount); });
             // with 100ms interval
             t.Interval = 100;
             t.Start();
@@ -61,19 +61,19 @@ namespace Player.RL
         /// <summary>
         /// Initialize the learner
         /// </summary>
-        public static void Init()
+        public void Init()
         {
             // init game's states
-            GameStates = new Stack<GameState>();
+            this.GameStates = new Stack<GameState>();
             // init hash table
-            _Q = new Dictionary<String, float>();
+            this._Q = new Dictionary<String, float>();
         }
         /// <summary>
         /// Executes ops and returns a movement direction based on game's status
         /// </summary>
         /// <param name="gameState">The game status</param>
         /// <returns>The direction</returns>
-        public static Direction ChooseAction(GameState gameState)
+        public Direction ChooseAction(GameState gameState)
         {
             try
             {
@@ -84,10 +84,10 @@ namespace Player.RL
                 // Next-State Max Q Pair
                 KeyValuePair<KeyValuePair<float, float>, Direction> nsmqp = new KeyValuePair<KeyValuePair<float, float>, Direction>(new KeyValuePair<float, float>(float.NegativeInfinity, float.NegativeInfinity), Direction.HOLD);
                 // foreach valid directions
-                foreach (Direction direction in getValidDirections(gameState))
+                foreach (Direction direction in this.getValidDirections(gameState))
                 {
                     // fetch the Next-State Q Value.
-                    var nsqv = new KeyValuePair<float, float>(getQVal(gameState, direction), getReward(getNextState(gameState, direction), gameState));
+                    var nsqv = new KeyValuePair<float, float>(this.getQVal(gameState, direction), this.getReward(this.getNextState(gameState, direction), gameState));
                     // current next-state pair
                     var cnsp = new KeyValuePair<KeyValuePair<float, float>, Direction>(nsqv, direction);
                     // add it to all possible next-state list
@@ -118,14 +118,14 @@ namespace Player.RL
                 while (nsmqpl.Count != 0)
                 {
                     // pick a randon index
-                    lock (RandGen) candIndex = RandGen.Next(0, nsmqpl.Count);
+                    lock (this.RandGen) candIndex = this.RandGen.Next(0, nsmqpl.Count);
                     // pick a random candidate
                     candidate = nsmqpl[candIndex];
                     // validate the mutation factor
                     // why the THRESHOLD is {10}? because we should give the agent the chance
                     // if he wants to cross-pass the whole horizon with one direction without 
                     // getting intruptted by mutation factor.
-                    if (getMutationVal(gameState, candidate.Value) < 10) goto __PROCEED;
+                    if (this.getMutationVal(gameState, candidate.Value) < 10) goto __PROCEED;
                     // remove the current
                     nsmqpl.RemoveAt(candIndex);
                 }
@@ -135,27 +135,27 @@ namespace Player.RL
                  * random action to break the action-loop.
                  */
                 // get an index from all possible state-action list
-                lock (RandGen) candIndex = RandGen.Next(0, nsAPqpl.Count);
+                lock (this.RandGen) candIndex = this.RandGen.Next(0, nsAPqpl.Count);
                 // make the random choosen as candidate
                 candidate = nsAPqpl[candIndex];
             __PROCEED:
                 // update the mution factor for current state
-                updateMutaionFactor(gameState, candidate.Value);
+                this.updateMutaionFactor(gameState, candidate.Value);
                 // the New Q Value
-                var nQv = getReward(gameState) + GAMMA * (candidate.Key.Key + candidate.Key.Value);
+                var nQv = this.getReward(gameState) + Learner.GAMMA * (candidate.Key.Key + candidate.Key.Value);
                 // update the Q value
-                updateQ(
+                this.updateQ(
                     gameState,          // The state
                     candidate.Value,    // The direction
                     nQv                 // The update value
                 );
                 // we don't need to create a full-stack property
-                if (GameStates.Count > 0)
+                if (this.GameStates.Count > 0)
                     // pop any previously pushed state
-                    GameStates.Pop();
+                    this.GameStates.Pop();
                 // push current game status
-                GameStates.Push(gameState);
-                //return Direction.EAST;
+                this.GameStates.Push(gameState);
+                //return the candidate's direction;
                 return candidate.Value;
             }
             catch (Exception e) { Console.WriteLine(); Console.WriteLine(e.ToString()); Debug.WriteLine(e.ToString()); throw e; }
@@ -165,7 +165,7 @@ namespace Player.RL
         /// </summary>
         /// <param name="gameState">The game state</param>
         /// <returns>The valid game directions</returns>
-        protected static IEnumerable<Direction> getValidDirections(GameState gameState)
+        protected IEnumerable<Direction> getValidDirections(GameState gameState)
         {
             List<Direction> directions = new List<Direction>() { /* constant direction for any state */ Direction.HOLD };
             // if not on horizontal edges?
@@ -194,14 +194,14 @@ namespace Player.RL
         /// <param name="gs">The game state</param>
         /// <param name="prevgs">[OPTIONAL] The previous game state; If not provided the top of stack will be used!</param>
         /// <returns>The related reward for passed game state</returns>
-        protected static float getReward(GameState gs, GameState prevgs = null)
+        protected float getReward(GameState gs, GameState prevgs = null)
         {
             // if no previously game state has been recorded
-            if (GameStates.Count == 0) /* NO REWARD AT INTI STATE */ return 0;
+            if (this.GameStates.Count == 0) /* NO REWARD AT INIT STATE */ return 0;
             // flag that we have peeked prev-gs from stack
             bool STACK_PEEKED = (prevgs == null);
             // if no previous game state has been provided? select the top of the stack
-            if (prevgs == null) prevgs = GameStates.Peek();
+            if (prevgs == null) prevgs = this.GameStates.Peek();
             // get reward of current state based on combination of current and previous state's status
             float r = 0;
             // +100 if i score-up
@@ -212,24 +212,24 @@ namespace Player.RL
             if (!prevgs.IsBallMine && gs.IsBallMine)
                 // it is good to catch the ball nearby the friendly gate
                 // to prevent the opponent to make a goal
-                r += 50.0F / CalcDistanceToGate(gs, false);
+                r += 50.0F / this.CalcDistanceToGate(gs, false);
             // dynamic reward if i lost the ball
             if (prevgs.IsBallMine && !gs.IsBallMine)
                 // it is worst if we lost the ball nearby the opponent's gate
                 // to make a goal opportunity
-                r -= 50.0F / CalcDistanceToGate(gs, true);
+                r -= 50.0F / this.CalcDistanceToGate(gs, true);
             // if i am in position of the ball
             if (gs.IsBallMine)
                 // make the agent eager to go make a goal
-                r += (70.0F / CalcDistanceToGate(gs, true));
+                r += (70.0F / this.CalcDistanceToGate(gs, true));
             else
                 // make the agent eager to go and catch the ball
-                r -= (30.0F * (CalcDistanceToBall(gs)));
+                r -= (30.0F * (this.CalcDistanceToBall(gs)));
             // if i made an own-goal?
             if (STACK_PEEKED && prevgs.IsBallMine && gs.Game_State == GameState.State.OPPONENT_SCORED)
                 // if i made an own-goal, the direction would be 100% {WEST}.
                 // if i made an own-goal, update the previous game-state's Q's value to {-INF}
-                updateQ(prevgs, Direction.WEST, float.NegativeInfinity);
+                this.updateQ(prevgs, Direction.WEST, float.NegativeInfinity);
             // return the reward value
             return r;
         }
@@ -239,7 +239,7 @@ namespace Player.RL
         /// <param name="s">Current state of the game</param>
         /// <param name="a">The action to apply on current state</param>
         /// <returns>The next state</returns>
-        protected static GameState getNextState(GameState s, Direction a)
+        protected GameState getNextState(GameState s, Direction a)
         {
             // make a clone of current status
             GameState _s = s.Clone() as GameState;
@@ -269,13 +269,13 @@ namespace Player.RL
              */
             if (_s.IsBallMine)
             {
-                if (CalcDistanceToGate(s, true, true) == 0) { _s.MyScore++; _s.Game_State = GameState.State.PLAYER_SCORED; }
-                else if (CalcDistanceToGate(s, false, true) == 0) { _s.OpponentScore++; _s.Game_State = GameState.State.OPPONENT_SCORED; }
+                if (this.CalcDistanceToGate(s, true, true) == 0) { _s.MyScore++; _s.Game_State = GameState.State.PLAYER_SCORED; }
+                else if (this.CalcDistanceToGate(s, false, true) == 0) { _s.OpponentScore++; _s.Game_State = GameState.State.OPPONENT_SCORED; }
             }
             else
             {
-                if (CalcDistanceToGate(s, false, false) == 0) { _s.OpponentScore++; _s.Game_State = GameState.State.OPPONENT_SCORED; }
-                else if (CalcDistanceToGate(s, true, false) == 0) { _s.MyScore++; _s.Game_State = GameState.State.PLAYER_SCORED; }
+                if (this.CalcDistanceToGate(s, false, false) == 0) { _s.OpponentScore++; _s.Game_State = GameState.State.OPPONENT_SCORED; }
+                else if (this.CalcDistanceToGate(s, true, false) == 0) { _s.MyScore++; _s.Game_State = GameState.State.PLAYER_SCORED; }
             }
             return _s;
         }
@@ -285,13 +285,13 @@ namespace Player.RL
         /// <param name="s">The game state</param>
         /// <param name="a">The action</param>
         /// <param name="val">The value of state-action</param>
-        protected static void updateQ(GameState s, Direction a, float val)
+        protected void updateQ(GameState s, Direction a, float val)
         {
             var key = new SAPair(s, a).GetHashCode();
-            if (_Q.ContainsKey(key))
-                _Q[key] = val;
+            if (this._Q.ContainsKey(key))
+                this._Q[key] = val;
             else
-                _Q.Add(key, val);
+                this._Q.Add(key, val);
         }
         /// <summary>
         /// Calculates the `Q` value
@@ -299,14 +299,14 @@ namespace Player.RL
         /// <param name="s">For the game state</param>
         /// <param name="a">For the action</param>
         /// <returns>The `Q` value</returns>
-        protected static float getQVal(GameState s, Direction a)
+        protected float getQVal(GameState s, Direction a)
         {
             var key = new SAPair(s, a).GetHashCode();
 #if __USE_PREPROCESSED_Q__
-            if (!_Q.ContainsKey(key))
+            if (!this._Q.ContainsKey(key))
             {
                 float q = 0;
-                var ns = getNextState(s, a);
+                var ns = this.getNextState(s, a);
                 if (a == Direction.EAST)
                 {
                     if (ns.IsBallMine) q += 5.0F;
@@ -314,25 +314,25 @@ namespace Player.RL
                 }
                 if (ns.Game_State == GameState.State.OPPONENT_SCORED) q = float.NegativeInfinity;
                 if (ns.Game_State == GameState.State.PLAYER_SCORED) q = float.PositiveInfinity;
-                updateQ(s, a, q);
+                this.updateQ(s, a, q);
             }
             // if making an own-goal
-            if (IsInFrontOfGate(s, false) && s.IsBallMine)
+            if (this.IsInFrontOfGate(s, false) && s.IsBallMine)
             {
                 if(a == Direction.WEST)
-                    updateQ(s, a, float.NegativeInfinity);
+                    this.updateQ(s, a, float.NegativeInfinity);
             }
-            if (IsInFrontOfGate(s, true) && s.IsBallMine)
+            if (this.IsInFrontOfGate(s, true) && s.IsBallMine)
             {
                 switch (a)
                 {
-                    case Direction.EAST: updateQ(s, a, float.PositiveInfinity); break;
-                    case Direction.HOLD: updateQ(s, a, +100); break;
-                    default: updateQ(s, a, float.NegativeInfinity); break;
+                    case Direction.EAST: this.updateQ(s, a, float.PositiveInfinity); break;
+                    case Direction.HOLD: this.updateQ(s, a, +100); break;
+                    default: this.updateQ(s, a, float.NegativeInfinity); break;
                 }
             }
 #endif
-            if (_Q.ContainsKey(key))
+            if (this._Q.ContainsKey(key))
                 return _Q[key];
             return 0;
         }
@@ -342,13 +342,13 @@ namespace Player.RL
         /// <param name="s">The game state</param>
         /// <param name="a">The action</param>
         /// <param name="val">The mutation factor's value</param>
-        protected static void updateMutaionFactor(GameState s, Direction a)
+        protected void updateMutaionFactor(GameState s, Direction a)
         {
             var key = new SAPair(s, a);
             uint val = 0;
-            if (PrevMutationfactor.Key != null && PrevMutationfactor.Key.GetHashCode() == key.GetHashCode())
-                val = PrevMutationfactor.Value + 1;
-            PrevMutationfactor = new KeyValuePair<SAPair, uint>(key, val);
+            if (this.PrevMutationfactor.Key != null && this.PrevMutationfactor.Key.GetHashCode() == key.GetHashCode())
+                val = this.PrevMutationfactor.Value + 1;
+            this.PrevMutationfactor = new KeyValuePair<SAPair, uint>(key, val);
         }
         /// <summary>
         /// Get `Mutationfactor` for the state-action
@@ -356,12 +356,12 @@ namespace Player.RL
         /// <param name="s">For the game state</param>
         /// <param name="a">For the action</param>
         /// <returns>The mutation factor's value</returns>
-        protected static uint getMutationVal(GameState s, Direction a)
+        protected uint getMutationVal(GameState s, Direction a)
         {
-            if (PrevMutationfactor.Key == null) return 0;
+            if (this.PrevMutationfactor.Key == null) return 0;
             var key = new SAPair(s, a);
-            if (PrevMutationfactor.Key.GetHashCode() == key.GetHashCode())
-                return PrevMutationfactor.Value;
+            if (this.PrevMutationfactor.Key.GetHashCode() == key.GetHashCode())
+                return this.PrevMutationfactor.Value;
             return 0;
         }
         /// <summary>
@@ -371,7 +371,7 @@ namespace Player.RL
         /// <param name="opGate">Check distance to opponent's gate or mine?</param>
         /// <param name="myDist">If `true` calculates my distance to a gate; otherwise calculates the opponent's to a gate</param>
         /// <returns>The distance to gate</returns>
-        protected static float CalcDistanceToGate(GameState s, bool opGate = true, bool myDist = true)
+        protected float CalcDistanceToGate(GameState s, bool opGate = true, bool myDist = true)
         {
             var gColumn = 10;
             var g1 = new System.Drawing.Point(3, gColumn);
@@ -397,7 +397,7 @@ namespace Player.RL
         /// </summary>
         /// <param name="s">Game's status</param>
         /// <returns>The distance to ball</returns>
-        protected static float CalcDistanceToBall(GameState s)
+        protected float CalcDistanceToBall(GameState s)
         {
             if (s.IsBallMine) return 0;
             var b = s.OpponentLocation;
@@ -413,7 +413,7 @@ namespace Player.RL
         /// <param name="s">The game's state</param>
         /// <param name="opGate">`true` to check if the state is in front of opponent's gate; otherwise `false` to check if the state is in front of mine gate</param>
         /// <returns>True if state is in front of a gate</returns>
-        public static bool IsInFrontOfGate(GameState s, bool opGate = true)
+        public bool IsInFrontOfGate(GameState s, bool opGate = true)
         {
             var gColumn = 9;
             var g1 = new System.Drawing.Point(3, gColumn);
