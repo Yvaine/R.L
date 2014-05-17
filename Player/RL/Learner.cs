@@ -149,6 +149,11 @@ namespace Player.RL
                     candidate.Value,    // The direction
                     nQv                 // The update value
                 );
+                // any of players scored?
+                if (gameState.Game_State == GameState.State.OPPONENT_SCORED ||
+                    gameState.Game_State == GameState.State.PLAYER_SCORED)
+                    // re-init previous mutation factor container
+                    this.PrevMutationfactor = new KeyValuePair<SAPair, uint>();
                 // we don't need to create a full-stack property
                 if (this.GameStates.Count > 0)
                     // pop any previously pushed state
